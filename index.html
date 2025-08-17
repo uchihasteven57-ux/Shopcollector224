@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Shop Logger PWA</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#151922">
+
+  <!-- Icons (fallback) -->
+  <link rel="icon" href="icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* minor helpers if needed */
+    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="logo" aria-hidden="true"></div>
+      <h1>Shop Logger</h1>
+      <button id="installBtn" class="install-btn" hidden>Install App</button>
+    </header>
+
+    <main>
+      <section class="card slide-in" aria-labelledby="formTitle">
+        <h2 id="formTitle" class="visually-hidden">Add Shop Entry</h2>
+
+        <form id="shopForm" novalidate autocomplete="on">
+          <div class="field">
+            <label for="shopName">Shop Name <span class="req">*</span></label>
+            <input id="shopName" name="shopName" type="text" required placeholder="e.g., Mingalar Phone Store" />
+            <div class="hint">This will be used as the photo filename.</div>
+          </div>
+
+          <div class="field">
+            <label>Shop Rating</label>
+            <div id="stars" class="stars" role="radiogroup" aria-label="Shop rating out of 5">
+              <button type="button" class="star" data-value="1" aria-checked="false" role="radio">★</button>
+              <button type="button" class="star" data-value="2" aria-checked="false" role="radio">★</button>
+              <button type="button" class="star" data-value="3" aria-checked="false" role="radio">★</button>
+              <button type="button" class="star" data-value="4" aria-checked="false" role="radio">★</button>
+              <button type="button" class="star" data-value="5" aria-checked="false" role="radio">★</button>
+            </div>
+            <input id="rating" name="rating" type="hidden" value="0">
+            <div class="hint">Tap to select 1–5 stars.</div>
+          </div>
+
+          <div class="field">
+            <label for="remark">Remark</label>
+            <textarea id="remark" name="remark" rows="3" placeholder="Notes about the shop..."></textarea>
+          </div>
+
+          <div class="field">
+            <label for="photo">Take Photo <span class="req">*</span></label>
+            <input id="photo" name="photo" type="file" accept="image/*" capture="environment" required />
+            <div id="photoPreview" class="photo-preview"></div>
+          </div>
+
+          <div class="field">
+            <label>Location</label>
+            <div class="loc-row">
+              <div id="locBadge" class="loc-badge">Locating…</div>
+              <button id="refreshLoc" class="ghost-btn" type="button">Refresh</button>
+            </div>
+            <input id="lat" name="lat" type="hidden">
+            <input id="lng" name="lng" type="hidden">
+          </div>
+
+          <div class="actions">
+            <button id="saveBtn" class="primary-btn" type="submit">
+              <span class="btn-text">Upload to Google Drive</span>
+              <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+            <button id="saveLocalBtn" class="ghost-btn" type="button" title="Save offline only">Save Offline</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card slide-in" style="margin-top: -1rem;">
+        <h3 style="margin-top:.25rem">Offline Entries</h3>
+        <div class="hint">These will auto-upload when you press “Upload” with internet.</div>
+        <div id="offlineList" class="photo-preview" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <span>Built as a lightweight field PWA • Works offline • Uploads to Google Drive</span>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Google APIs (Drive v3 + Identity Services) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+
+  <!-- App logic -->
+  <script src="app.js"></script>
+
+  <!-- Register Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js');
+      });
+    }
+  </script>
+</body>
+</html>

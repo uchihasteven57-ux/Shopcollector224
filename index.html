@@ -15,14 +15,21 @@
 
   <!-- Styles -->
   <link rel="stylesheet" href="style.css">
-  <style>.visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden}</style>
+  <style>
+    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden}
+    .loading-spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite}
+    .btn-loading .loading-spinner{display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
 <body>
   <div class="app">
     <header class="app-header">
       <div class="logo" aria-hidden="true"></div>
       <h1>Shop Logger</h1>
-      <button id="uploadOfflineBtn" class="ghost-btn" style="margin-left:auto;">Upload</button>
+      <button id="uploadOfflineBtn" class="ghost-btn" style="margin-left:auto;">
+        Upload <span class="loading-spinner"></span>
+      </button>
       <button id="installBtn" class="install-btn" hidden>Install App</button>
     </header>
 
@@ -101,7 +108,7 @@
   <!-- App logic -->
   <script src="app.js"></script>
 
-  <!-- Register Service Worker -->
+  <!-- Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {

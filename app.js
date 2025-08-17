@@ -1,5 +1,5 @@
 /* ========= CONFIG ========= */
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzPM_Q1Upf4w2YjElrhqA7_0Ts4KWpl3apKTdDHQG7fxcTxiSRp9rCycDS4h53iR5kR/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwSHb7IxJqFn8RsClq5ptHWVVFjGc36EYyRd5XlXEWAfTkXsBGZCdyvfZ8VQhhshWz0/exec";
 /* ========================= */
 
 const $ = (sel) => document.querySelector(sel);

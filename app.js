@@ -8,22 +8,6 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2600); }
 function setBtnLoading(btn, loading){ btn.classList.toggle("loading", !!loading); btn.disabled = !!loading; }
 
-/* ---- PWA install ---- */
-let deferredPrompt;
-const installBtn = $("#installBtn");
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  installBtn.hidden = false;
-});
-installBtn?.addEventListener("click", async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  installBtn.hidden = true;
-  deferredPrompt = null;
-});
-
 /* ---- Location ---- */
 async function getLocation(){
   if (!('geolocation' in navigator)) { $("#locBadge").textContent = "Geolocation not supported"; return; }
@@ -55,7 +39,6 @@ $("#refreshLoc").addEventListener("click", getLocation);
       starEls.forEach(b=>{
         const active = Number(b.dataset.value) <= val;
         b.classList.toggle("active", active);
-        b.setAttribute("aria-checked", String(active && Number(b.dataset.value)===val));
       });
     });
   });
@@ -69,10 +52,7 @@ $("#photo").addEventListener("change", async (e)=>{
   const preview = $("#photoPreview"); preview.innerHTML = "";
   if (!file) return;
   const url = URL.createObjectURL(file);
-  const div = document.createElement("div");
-  div.className = "thumb";
-  div.innerHTML = `<img src="${url}" alt="Selected photo"><span class="badge">Selected</span>`;
-  preview.appendChild(div);
+  preview.innerHTML = `<div class="thumb"><img src="${url}" alt="Selected photo"><span class="badge">Selected</span></div>`;
 });
 
 /* ---- Local cache ---- */
@@ -101,7 +81,7 @@ $("#clearBtn").addEventListener("click", ()=>{ clearFormKeepLocation(); toast("F
 /* ---- Save offline ---- */
 $("#saveLocalBtn").addEventListener("click", async ()=>{
   const shopName = $("#shopName").value.trim();
-  if(!shopName){ toast("Shop Name is required to save offline."); return; }
+  if(!shopName){ toast("Shop Name is required."); return; }
   if(!selectedFile){ toast("Please add a photo."); return; }
   const rating = Number($("#rating").value||0);
   const remark = $("#remark").value||"";
@@ -120,12 +100,15 @@ $("#shopForm").addEventListener("submit", async (e)=>{
     const shopName=$("#shopName").value.trim(), rating=Number($("#rating").value||0), remark=$("#remark").value||"", lat=$("#lat").value||"", lng=$("#lng").value||"";
     if (!shopName){ toast("Please enter Shop Name."); setBtnLoading(btn,false); return; }
     if (!selectedFile){ toast("Please attach a photo."); setBtnLoading(btn,false); return; }
+
     const dataUrl = await fileToDataURL(selectedFile); const base64=dataUrlToBase64(dataUrl); const filename=makeSafeFilename(shopName, selectedFile.name);
 
     const photoRes=await fetch(GAS_WEB_APP_URL,{method:"POST",body:new URLSearchParams({action:"photo",file:base64,filename})}).then(r=>r.json());
     if(photoRes.status!=="ok") throw new Error("Photo upload failed");
+
     const entryRes=await fetch(GAS_WEB_APP_URL,{method:"POST",body:new URLSearchParams({action:"entry",shopName,remark,rating:String(rating),lat,lng,photoUrl:photoRes.fileUrl})}).then(r=>r.json());
     if(entryRes.status!=="ok") throw new Error("Entry save failed");
+
     toast("Submitted ✅"); clearFormKeepLocation();
   }catch(err){ console.error(err); toast("Submit failed — saved offline."); if(selectedFile){ const dataUrl=await fileToDataURL(selectedFile); const entry={shopName:$("#shopName").value.trim(),rating:Number($("#rating").value||0),remark:$("#remark").value||"",lat:$("#lat").value||null,lng:$("#lng").value||null,photoDataUrl:dataUrl,ts:Date.now()}; const arr=readOffline(); arr.push(entry); writeOffline(arr); clearFormKeepLocation(); } }
   finally{ setBtnLoading(btn,false); }
@@ -133,14 +116,22 @@ $("#shopForm").addEventListener("submit", async (e)=>{
 
 /* ---- Upload offline ---- */
 $("#uploadOfflineBtn").addEventListener("click", async ()=>{
-  const offline=readOffline(); if(!offline.length){ toast("No offline entries."); return; }
-  for(const it of offline){ try{ const filename=`${it.shopName.replace(/[\\/:*?"<>|]+/g,"_").trim()}.jpg`;
-    const resPhoto=await fetch(GAS_WEB_APP_URL,{method:"POST",body:new URLSearchParams({action:"photo",file:dataUrlToBase64(it.photoDataUrl),filename})}).then(r=>r.json());
-    if(resPhoto.status!=="ok") throw new Error("Photo upload failed");
-    const resEntry=await fetch(GAS_WEB_APP_URL,{method:"POST",body:new URLSearchParams({action:"entry",shopName:it.shopName,remark:it.remark||"",rating:String(it.rating||0),lat:it.lat||"",lng:it.lng||"",photoUrl:resPhoto.fileUrl})}).then(r=>r.json());
-    if(resEntry.status!=="ok") throw new Error("Entry save failed");
-    toast(`Uploaded ${it.shopName}`);}catch(err){console.error(err);toast(`Upload failed for ${it.shopName}`);} }
+  const btn=$("#uploadOfflineBtn"); btn.classList.add("btn-loading"); btn.disabled=true;
+  const offline=readOffline(); if(!offline.length){ toast("No offline entries."); btn.classList.remove("btn-loading"); btn.disabled=false; return; }
+
+  for(const it of offline){ 
+    try{ 
+      const filename=`${it.shopName.replace(/[\\/:*?"<>|]+/g,"_").trim()}.jpg`;
+      const resPhoto=await fetch(GAS_WEB_APP_URL,{method:"POST",body:new URLSearchParams({action:"photo",file:dataUrlToBase64(it.photoDataUrl),filename})}).then(r=>r.json());
+      if(resPhoto.status!=="ok") throw new Error("Photo upload failed");
+      const resEntry=await fetch(GAS_WEB_APP_URL,{method:"POST",body:new URLSearchParams({action:"entry",shopName:it.shopName,remark:it.remark||"",rating:String(it.rating||0),lat:it.lat||"",lng:it.lng||"",photoUrl:resPhoto.fileUrl})}).then(r=>r.json());
+      if(resEntry.status!=="ok") throw new Error("Entry save failed");
+      toast(`Uploaded ${it.shopName}`);
+    }catch(err){ console.error(err); toast(`Upload failed for ${it.shopName}`); }
+  }
+
   localStorage.removeItem(LS_KEY); renderOffline();
+  btn.classList.remove("btn-loading"); btn.disabled=false;
 });
 
 /* ---- Network awareness ---- */

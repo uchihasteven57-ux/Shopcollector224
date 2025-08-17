@@ -1,6 +1,6 @@
 /* ====== CONFIG: fill these in ====== */
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com";
-const GOOGLE_API_KEY   = "YOUR_PUBLIC_API_KEY";
+const GOOGLE_CLIENT_ID = "253775472113-k3vpsrov8g8q4iqiqo5or5806tqp8neb.apps.googleusercontent.com";
+const GOOGLE_API_KEY   = "AIzaSyD7ex0z16oA2rjTfD5V53dPoCKwBzPXE5s";
 /* Optional: create/use this folder in Drive (will be auto-created if missing) */
 const DRIVE_FOLDER_NAME = "ShopPhotos";
 /* =================================== */

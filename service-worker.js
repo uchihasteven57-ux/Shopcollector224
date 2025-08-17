@@ -1,5 +1,5 @@
 // Basic offline cache for PWA shell
-const CACHE = "shoplogger-cache-v1";
+const CACHE = "shopsnap-cache-v1";
 const ASSETS = [
   "./",
   "./index.html",

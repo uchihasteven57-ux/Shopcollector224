@@ -28,14 +28,14 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const { request } = e;
-  if (request.method !== "GET") return; // let non-GET pass through (e.g., Drive upload)
+  if (request.method !== "GET") return; // let non-GET pass through (e.g., Web App POSTs)
   e.respondWith((async ()=>{
     const cached = await caches.match(request);
     if (cached) return cached;
     try{
       const res = await fetch(request);
       return res;
-    }catch{
+    }catch(err){
       // offline fallback: return cached shell if root navigation
       if (request.mode === "navigate") return caches.match("./index.html");
       throw err;

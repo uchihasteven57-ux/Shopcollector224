@@ -9,22 +9,20 @@
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#151922">
 
-  <!-- Icons (fallback) -->
+  <!-- Icons -->
   <link rel="icon" href="icon-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Styles -->
   <link rel="stylesheet" href="style.css">
-  <style>
-    /* minor helpers if needed */
-    .visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden}
-  </style>
+  <style>.visually-hidden{position:absolute!important;clip:rect(1px,1px,1px,1px);padding:0;border:0;height:1px;width:1px;overflow:hidden}</style>
 </head>
 <body>
   <div class="app">
     <header class="app-header">
       <div class="logo" aria-hidden="true"></div>
       <h1>Shop Logger</h1>
+      <button id="uploadOfflineBtn" class="ghost-btn" style="margin-left:auto;">Upload</button>
       <button id="installBtn" class="install-btn" hidden>Install App</button>
     </header>
 
@@ -36,7 +34,7 @@
           <div class="field">
             <label for="shopName">Shop Name <span class="req">*</span></label>
             <input id="shopName" name="shopName" type="text" required placeholder="e.g., Mingalar Phone Store" />
-            <div class="hint">This will be used as the photo filename.</div>
+            <div class="hint">This becomes the photo filename.</div>
           </div>
 
           <div class="field">
@@ -75,7 +73,7 @@
 
           <div class="actions">
             <button id="saveBtn" class="primary-btn" type="submit">
-              <span class="btn-text">Upload to Google Drive</span>
+              <span class="btn-text">Submit</span>
               <span class="btn-spinner" aria-hidden="true"></span>
             </button>
             <button id="saveLocalBtn" class="ghost-btn" type="button" title="Save offline only">Save Offline</button>
@@ -84,22 +82,21 @@
       </section>
 
       <section class="card slide-in" style="margin-top: -1rem;">
-        <h3 style="margin-top:.25rem">Offline Entries</h3>
-        <div class="hint">These will auto-upload when you press “Upload” with internet.</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <h3 style="margin-top:.25rem">Offline Entries</h3>
+          <!-- Upload button is also in header; keeping this area clean -->
+        </div>
+        <div class="hint">These are saved locally. Use “Upload” to send them to Sheets & Drive when online.</div>
         <div id="offlineList" class="photo-preview" aria-live="polite"></div>
       </section>
     </main>
 
     <footer class="app-footer">
-      <span>Built as a lightweight field PWA • Works offline • Uploads to Google Drive</span>
+      <span>Installable PWA • Works offline • Syncs to Google Sheets & Drive</span>
     </footer>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <!-- Google APIs (Drive v3 + Identity Services) -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js" async defer></script>
 
   <!-- App logic -->
   <script src="app.js"></script>

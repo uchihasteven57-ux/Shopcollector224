@@ -56,7 +56,7 @@ $("#photo").addEventListener("change", async (e)=>{
 });
 
 /* ---- Local cache ---- */
-const LS_KEY = "shoplogger_offline_entries";
+const LS_KEY = "shopsnap_offline_entries";
 function readOffline(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch{ return []; } }
 function writeOffline(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); renderOffline(); }
 function renderOffline(){ const list=$("#offlineList"); list.innerHTML=""; readOffline().forEach(it=>{ const d=document.createElement("div"); d.className="thumb"; d.innerHTML=`<img src="${it.photoDataUrl}" alt="${it.shopName}"><span class="badge">${it.shopName} • ${it.rating}★</span>`; list.appendChild(d); }); }

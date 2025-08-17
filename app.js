@@ -1,20 +1,12 @@
-/* ====== CONFIG: fill these in ====== */
-const GOOGLE_CLIENT_ID = "253775472113-k3vpsrov8g8q4iqiqo5or5806tqp8neb.apps.googleusercontent.com";
-const GOOGLE_API_KEY   = "AIzaSyD7ex0z16oA2rjTfD5V53dPoCKwBzPXE5s";
-/* Optional: create/use this folder in Drive (will be auto-created if missing) */
-const DRIVE_FOLDER_NAME = "ShopPhotos";
-/* =================================== */
+/* ========= CONFIG =========
+ * GAS_WEB_APP_URL: your Apps Script Web App URL (same endpoint handles both photo & entry)
+ * ========================= */
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzPM_Q1Upf4w2YjElrhqA7_0Ts4KWpl3apKTdDHQG7fxcTxiSRp9rCycDS4h53iR5kR/exec";
 
-let gapiInited = false;
-let gisInited = false;
-let tokenClient = null;
-let accessToken = null;
-let driveFolderId = null;
-
+/* Utilities */
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-/* UI helpers */
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2600); }
 function setBtnLoading(btn, loading){
   btn.classList.toggle("loading", !!loading);
@@ -62,7 +54,6 @@ async function getLocation(){
     );
   });
 }
-
 window.addEventListener("load", getLocation);
 $("#refreshLoc").addEventListener("click", getLocation);
 
@@ -82,7 +73,7 @@ $("#refreshLoc").addEventListener("click", getLocation);
   });
 })();
 
-/* ---- Photo preview (and store the chosen File) ---- */
+/* ---- Photo preview ---- */
 let selectedFile = null;
 $("#photo").addEventListener("change", async (e)=>{
   const file = e.target.files?.[0];
@@ -97,8 +88,9 @@ $("#photo").addEventListener("change", async (e)=>{
   preview.appendChild(div);
 });
 
-/* ---- Offline cache of entries (LocalStorage) ---- */
+/* ---- Local offline cache ---- */
 const LS_KEY = "shoplogger_offline_entries";
+
 function readOffline(){
   try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch{ return []; }
 }
@@ -110,7 +102,7 @@ function renderOffline(){
   const list = $("#offlineList");
   const items = readOffline();
   list.innerHTML = "";
-  items.forEach((it, idx)=>{
+  items.forEach((it)=>{
     const div = document.createElement("div");
     div.className = "thumb";
     div.innerHTML = `
@@ -122,7 +114,19 @@ function renderOffline(){
 }
 renderOffline();
 
-/* Save offline only (photo -> dataURL for storage) */
+async function fileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+function dataUrlToBase64(dataUrl){
+  return dataUrl.split(",")[1] || "";
+}
+
+/* Save offline only */
 $("#saveLocalBtn").addEventListener("click", async ()=>{
   const shopName = $("#shopName").value.trim();
   if(!shopName){ toast("Shop Name is required to save offline."); return; }
@@ -140,131 +144,7 @@ $("#saveLocalBtn").addEventListener("click", async ()=>{
   toast("Saved offline.");
 });
 
-/* ---- Google API init ---- */
-window.addEventListener("load", () => {
-  // The external scripts load async; poll until available, then init.
-  const ready = setInterval(()=>{
-    if (window.gapi && window.google && !gapiInited) {
-      clearInterval(ready);
-      initGoogle();
-    }
-  }, 200);
-});
-
-async function initGoogle(){
-  // 1) Init Identity token client
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: GOOGLE_CLIENT_ID,
-    scope: "https://www.googleapis.com/auth/drive.file",
-    callback: (t) => { accessToken = t.access_token; },
-  });
-  gisInited = true;
-
-  // 2) Init gapi client
-  gapi.load("client", async () => {
-    await gapi.client.init({
-      apiKey: GOOGLE_API_KEY,
-      discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-    });
-    gapiInited = true;
-    // Optional: lazy ensure folder id after auth on first upload
-  });
-}
-
-/* Get access token (pop up consent if needed) */
-async function ensureAccessToken(){
-  return new Promise((resolve, reject)=>{
-    if (!gisInited) return reject(new Error("Google Identity not ready"));
-    tokenClient.callback = (t) => {
-      accessToken = t.access_token;
-      resolve(accessToken);
-    };
-    // prompt if no token; otherwise get a fresh token silently
-    const shouldPrompt = !accessToken;
-    tokenClient.requestAccessToken({ prompt: shouldPrompt ? "consent" : "" });
-  });
-}
-
-/* Ensure Drive folder exists (name -> id) */
-async function ensureDriveFolderId(){
-  if (driveFolderId) return driveFolderId;
-  // search
-  const q = `mimeType='application/vnd.google-apps.folder' and name='${DRIVE_FOLDER_NAME}' and trashed=false`;
-  const res = await gapi.client.drive.files.list({ q, fields: "files(id,name)" });
-  if (res.result.files && res.result.files.length){
-    driveFolderId = res.result.files[0].id;
-    return driveFolderId;
-  }
-  // create
-  const create = await gapi.client.drive.files.create({
-    resource: { name: DRIVE_FOLDER_NAME, mimeType: "application/vnd.google-apps.folder" },
-    fields: "id,name",
-  });
-  driveFolderId = create.result.id;
-  return driveFolderId;
-}
-
-/* Convert file to dataURL */
-function fileToDataURL(file){
-  return new Promise((resolve,reject)=>{
-    const r=new FileReader();
-    r.onload=()=>resolve(r.result);
-    r.onerror=reject;
-    r.readAsDataURL(file);
-  });
-}
-
-/* Build a new File with a new name */
-async function renameFile(file, newName){
-  const blob = await file.arrayBuffer();
-  const type = file.type || "image/jpeg";
-  return new File([blob], newName, { type });
-}
-
-/* Multipart upload to Drive using fetch (with token) */
-async function uploadToDrive(file, filename, metadata = {}){
-  const boundary = "-------ShopLoggerFormBoundary" + Math.random().toString(16).slice(2);
-  const meta = {
-    name: filename,
-    mimeType: file.type || "image/jpeg",
-    ...metadata,
-  };
-  const formBody = [
-    `--${boundary}`,
-    "Content-Type: application/json; charset=UTF-8",
-    "",
-    JSON.stringify(meta),
-    `--${boundary}`,
-    `Content-Type: ${file.type || "image/jpeg"}`,
-    "",
-    new Uint8Array(await file.arrayBuffer()),
-    `--${boundary}--`,
-    ""
-  ];
-
-  // Build body as Blob to mix strings + binary
-  const bodyParts = formBody.map(part => (typeof part==="string" ? new TextEncoder().encode(part+"\r\n") : part));
-  const totalLength = bodyParts.reduce((s,p)=>s+p.length,0);
-  const uint = new Uint8Array(totalLength);
-  let offset=0;
-  for (const p of bodyParts){ uint.set(p, offset); offset += p.length; }
-
-  const resp = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${accessToken}`,
-      "Content-Type": `multipart/related; boundary=${boundary}`,
-    },
-    body: uint
-  });
-  if (!resp.ok){
-    const errTxt = await resp.text();
-    throw new Error("Drive upload failed: " + errTxt);
-  }
-  return resp.json();
-}
-
-/* ---- Form submit: rename to ShopName + upload ---- */
+/* ---- Submit (Sheets + Drive via GAS; no client APIs) ---- */
 $("#shopForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const btn = $("#saveBtn");
@@ -274,47 +154,67 @@ $("#shopForm").addEventListener("submit", async (e)=>{
     const shopName = $("#shopName").value.trim();
     const rating = Number($("#rating").value || 0);
     const remark = $("#remark").value || "";
-    const lat = $("#lat").value || null;
-    const lng = $("#lng").value || null;
+    const lat = $("#lat").value || "";
+    const lng = $("#lng").value || "";
 
     if (!shopName){ toast("Please enter Shop Name."); setBtnLoading(btn,false); return; }
     if (!selectedFile){ toast("Please attach a photo."); setBtnLoading(btn,false); return; }
 
-    // 1) Auth + Drive folder
-    await ensureAccessToken();
-    await ensureDriveFolderId();
+    // 1) Photo → Drive (base64 to GAS)
+    const dataUrl = await fileToDataURL(selectedFile);
+    const base64 = dataUrlToBase64(dataUrl);
+    const filename = makeSafeFilename(shopName, selectedFile.name);
 
-    // 2) Rename photo to Shop Name
-    const ext = (selectedFile.name.split(".").pop() || "jpg").toLowerCase();
-    const safeName = shopName.replace(/[\\/:*?"<>|]+/g,"_").trim();
-    const filename = `${safeName}.${ext}`;
-    const renamed = await renameFile(selectedFile, filename);
+    const photoRes = await fetch(GAS_WEB_APP_URL, {
+      method: "POST",
+      body: new URLSearchParams({
+        action: "photo",
+        file: base64,
+        filename
+      })
+    }).then(r=>r.json());
 
-    // 3) Upload
-    const meta = { parents: [driveFolderId] };
-    const uploaded = await uploadToDrive(renamed, filename, meta);
+    if(photoRes.status!=="ok") throw new Error("Photo upload failed");
+    const photoUrl = photoRes.fileUrl;
 
-    // 4) Optionally, create a simple JSON note alongside the photo (comment out if not needed)
-    const details = {
-      shopName, rating, remark, lat, lng, uploadedFileId: uploaded.id, uploadedFileName: uploaded.name, ts: new Date().toISOString()
-    };
-    const detailsBlob = new Blob([JSON.stringify(details,null,2)], { type: "application/json" });
-    await uploadToDrive(new File([await detailsBlob.arrayBuffer()], `${safeName}.json`, { type: "application/json" }), `${safeName}.json`, { parents: [driveFolderId] });
+    // 2) Entry → Sheet (URL-encoded to avoid preflight/CORS)
+    const entryParams = new URLSearchParams({
+      action: "entry",
+      shopName,
+      remark,
+      rating: String(rating),
+      lat,
+      lng,
+      photoUrl
+    });
 
-    toast("Uploaded to Google Drive ✅");
+    const entryRes = await fetch(GAS_WEB_APP_URL, {
+      method: "POST",
+      body: entryParams
+    }).then(r=>r.json());
+
+    if(entryRes.status!=="ok") throw new Error("Entry save failed");
+
+    toast("Submitted ✅");
+    // optional: clear form
+    $("#shopForm").reset();
+    $("#photoPreview").innerHTML = "";
+    selectedFile = null;
+    $$("#stars .star").forEach(s=>s.classList.remove("active"));
+    $("#rating").value = "0";
   }catch(err){
     console.error(err);
-    toast("Upload failed — saved offline.");
-    // Save offline on failure
+    toast("Submit failed — saved offline.");
+    // Save offline fallback
     if (selectedFile){
-      const photoDataUrl = await fileToDataURL(selectedFile);
+      const dataUrl = await fileToDataURL(selectedFile);
       const entry = {
         shopName: $("#shopName").value.trim(),
         rating: Number($("#rating").value||0),
         remark: $("#remark").value||"",
         lat: $("#lat").value||null,
         lng: $("#lng").value||null,
-        photoDataUrl,
+        photoDataUrl: dataUrl,
         ts: Date.now()
       };
       const arr = readOffline(); arr.push(entry); writeOffline(arr);
@@ -323,3 +223,61 @@ $("#shopForm").addEventListener("submit", async (e)=>{
     setBtnLoading(btn, false);
   }
 });
+
+function makeSafeFilename(shopName, originalName){
+  const ext = (originalName && originalName.includes(".")) ? originalName.split(".").pop() : "jpg";
+  const safe = shopName.replace(/[\\/:*?"<>|]+/g,"_").trim();
+  return `${safe}.${ext}`;
+}
+
+/* ---- Upload all offline entries ---- */
+$("#uploadOfflineBtn").addEventListener("click", async ()=>{
+  const offline = readOffline();
+  if(!offline.length){ toast("No offline entries."); return; }
+
+  for (const it of offline){
+    try{
+      const filename = `${it.shopName.replace(/[\\/:*?"<>|]+/g,"_").trim()}.jpg`;
+
+      // 1) photo
+      const resPhoto = await fetch(GAS_WEB_APP_URL, {
+        method: "POST",
+        body: new URLSearchParams({
+          action: "photo",
+          file: dataUrlToBase64(it.photoDataUrl),
+          filename
+        })
+      }).then(r=>r.json());
+      if(resPhoto.status!=="ok") throw new Error("Photo upload failed");
+
+      // 2) entry
+      const entryParams = new URLSearchParams({
+        action: "entry",
+        shopName: it.shopName,
+        remark: it.remark || "",
+        rating: String(it.rating || 0),
+        lat: it.lat || "",
+        lng: it.lng || "",
+        photoUrl: resPhoto.fileUrl
+      });
+      const resEntry = await fetch(GAS_WEB_APP_URL, {
+        method: "POST",
+        body: entryParams
+      }).then(r=>r.json());
+      if(resEntry.status!=="ok") throw new Error("Entry save failed");
+
+      toast(`Uploaded ${it.shopName}`);
+    }catch(err){
+      console.error(err);
+      toast(`Upload failed for ${it.shopName}`);
+    }
+  }
+
+  // Clear offline cache after attempting all
+  localStorage.removeItem(LS_KEY);
+  renderOffline();
+});
+
+/* ---- Minor: network awareness toast ---- */
+window.addEventListener('online', ()=>toast("Back online"));
+window.addEventListener('offline', ()=>toast("You’re offline"));
